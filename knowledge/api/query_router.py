@@ -90,9 +90,7 @@ def register_router(app: FastAPI):
         # 3.2 非流式调用(直接用当前线程运行查询流程 不启动一个新线程执行--->合理?。不合理：不是只有流式慢 非流式也慢 )
         else:
 
-            # a. 运行查询的pineline
-            # 获取当前事件循环对象(uvicorn)
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, service.run_query_graph, session_id, task_id, request.query,
                                        request.is_stream)
             # b. 从任务结果队列中获取答案

@@ -1,3 +1,4 @@
+import logging
 from typing import List, Dict, Any, Tuple
 from langchain_openai import ChatOpenAI
 from knowledge.processor.query_processor.base import BaseNode, T
@@ -7,6 +8,8 @@ from knowledge.utils.mongo_history_util import save_chat_message
 from knowledge.utils.task_util import set_task_result
 from knowledge.utils.sse_util import push_sse_event, SSEEvent
 from knowledge.prompts.query_prompt import ANSWER_PROMPT
+
+logger = logging.getLogger(__name__)
 
 
 class AnswerOutPutNode(BaseNode):
@@ -181,7 +184,15 @@ class AnswerOutPutNode(BaseNode):
 
         """
 
-        # 1. 获取LLM客户端
+        use_agent = getattr(self.config, "enable_agent_mode", False)
+        if use_agent:
+            logger.info("Agent 模式已启用，使用 ReAct Agent 生成答案")
+            self._generate_answer_with_agent(task_id, state)
+        else:
+            logger.info("使用普通 LLM 单次调用生成答案")
+            self._generate_answer_llm(prompt, task_id, state)
+
+    def _generate_answer_llm(self, prompt: str, task_id: str, state: QueryGraphState):
         try:
             llm_client = AIClients.get_llm_client(response_format=False)
         except ConnectionError as e:
@@ -189,18 +200,66 @@ class AnswerOutPutNode(BaseNode):
             state['answer'] = "LLM暂无法回答"
             return
 
-        # 2. 判断流式开关
         if state.get('is_stream'):
-            # 2.1 流式调用
-            # 获取llm的结果(stream)
-            # 写入到sse队列
             state['answer'] = self._stream_llm(task_id, prompt, llm_client)
-
         else:
-            # 2.2 非流式调用
             state['answer'] = self._invoke_llm(prompt, llm_client)
-            # 写入到任务结果队列中(非流式调用)
             set_task_result(task_id=task_id, key="answer", value=state['answer'])
+
+    def _generate_answer_with_agent(self, task_id: str, state: QueryGraphState):
+        """使用 ReAct Agent（多轮 Tool Calling）生成答案。"""
+        import os
+        from knowledge.processor.query_processor.agent import ReActAgent
+        from knowledge.processor.query_processor.tools.query_tools import build_tools
+
+        api_key = self.config.openai_api_key
+        base_url = self.config.openai_api_base
+        model = os.getenv("LLM_DEFAULT_MODEL", "qwen-flash")
+
+        tools = build_tools(
+            reranked_docs=state.get("reranked_docs") or [],
+            web_docs=state.get("web_search_docs") or [],
+            item_names=state.get("item_names") or [],
+        )
+
+        agent = ReActAgent(
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            tools=tools,
+            max_turns=getattr(self.config, "agent_max_turns", 5),
+        )
+
+        user_query = state.get("rewritten_query") or state.get("original_query", "")
+        item_names_str = "、".join(state.get("item_names") or [])
+
+        if state.get("is_stream"):
+            accumulated = ""
+            try:
+                for delta in agent.stream(
+                    user_query=user_query, item_names=item_names_str
+                ):
+                    if delta:
+                        push_sse_event(
+                            task_id=task_id,
+                            event=SSEEvent.DELTA,
+                            data={"delta": delta},
+                        )
+                        accumulated += delta
+            except Exception as e:
+                logger.error(f"Agent 流式生成失败: {e}")
+
+            state["answer"] = accumulated or "Agent 暂无法回答"
+        else:
+            try:
+                state["answer"] = agent.invoke(
+                    user_query=user_query, item_names=item_names_str
+                )
+            except Exception as e:
+                logger.error(f"Agent 生成失败: {e}")
+                state["answer"] = "Agent 暂无法回答"
+
+            set_task_result(task_id=task_id, key="answer", value=state["answer"])
 
     def _invoke_llm(self, prompt: str, llm_client: ChatOpenAI) -> str:
         """

@@ -139,8 +139,8 @@ class AIClients(BaseClientManager):
         try:
             # 1. 获取环境变量
             model_name_or_path = cls._require_env('BGE_RERANKER_LARGE')
-            device = cls._require_env('BGE_DEVICE')
-            fp16_str = cls._require_env('BGE_FP16')
+            device = cls._require_env('BGE_RERANKER_DEVICE')
+            fp16_str = cls._require_env('BGE_RERANKER_FP16')
             fp16 = fp16_str.lower() in ("true", "1")
 
             # 2. 创建

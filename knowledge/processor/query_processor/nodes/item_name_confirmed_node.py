@@ -1,7 +1,6 @@
 import logging, re, json
 from json import JSONDecodeError
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 from typing import Dict, Tuple, List, Any
 from langchain_core.messages import SystemMessage, HumanMessage

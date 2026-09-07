@@ -3,6 +3,8 @@
 使用 LangGraph 构建知识库查询工作流。
 """
 
+import threading
+
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
 from dotenv import load_dotenv
@@ -128,8 +130,23 @@ def create_query_graph() -> CompiledStateGraph:
     return workflow.compile()
 
 
-# 创建全局图实例
-query_app = create_query_graph()
+# ── 懒加载单例 ──
+_query_app: CompiledStateGraph | None = None
+_query_app_lock = threading.Lock()
+
+
+def get_query_graph() -> CompiledStateGraph:
+    """获取查询流程图单例（懒加载 + 线程安全）。
+
+    首次调用时才会编译图并实例化所有节点，避免模块 import 阶段
+    因 Milvus / MongoDB / LLM 等依赖未就绪而直接崩溃。
+    """
+    global _query_app
+    if _query_app is None:
+        with _query_app_lock:
+            if _query_app is None:
+                _query_app = create_query_graph()
+    return _query_app
 
 if __name__ == "__main__":
     print("=" * 60)

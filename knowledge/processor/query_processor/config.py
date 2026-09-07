@@ -103,6 +103,14 @@ class QueryConfig:
         default_factory=lambda: os.getenv("MCP_DASHSCOPE_BASE_URL", "")
     )
 
+    # ==================== Agent 配置 ====================
+    enable_agent_mode: bool = field(
+        default_factory=lambda: os.getenv("ENABLE_AGENT_MODE", "false").lower() in ("true", "1", "yes")
+    )
+    agent_max_turns: int = field(
+        default_factory=lambda: int(os.getenv("AGENT_MAX_TURNS", "5"))
+    )
+
     @classmethod
     def from_env(cls) -> "QueryConfig":
         """从环境变量加载配置。

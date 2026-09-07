@@ -1,4 +1,5 @@
 import json
+import threading
 
 from langgraph.graph.state import StateGraph, CompiledStateGraph
 from langgraph.graph import END
@@ -94,7 +95,23 @@ def import_graph() -> CompiledStateGraph:
     return complied_state_graph
 
 
-import_app = import_graph()
+# ── 懒加载单例 ──
+_import_app: CompiledStateGraph | None = None
+_import_app_lock = threading.Lock()
+
+
+def get_import_graph() -> CompiledStateGraph:
+    """获取导入流程图单例（懒加载 + 线程安全）。
+
+    首次调用时才会编译图并实例化所有节点，避免模块 import 阶段
+    因 Milvus / MongoDB / 模型等依赖未就绪而直接崩溃。
+    """
+    global _import_app
+    if _import_app is None:
+        with _import_app_lock:
+            if _import_app is None:
+                _import_app = import_graph()
+    return _import_app
 
 
 ###################################
@@ -104,8 +121,8 @@ def run_import_graph():
     # 1. 定义运行graph流程的状态
 
     graph_state = {
-        "import_file_path": r"D:\develop\develop\workspace\pycharm\BJ251208\shopkeeper_brain\knowledge\processor\import_processor\temp_dir\万用表的使用.pdf",
-        "file_dir": r"D:\develop\develop\workspace\pycharm\BJ251208\shopkeeper_brain\knowledge\processor\import_processor\temp_dir"
+        "import_file_path": r"D:\PyCharm项目\shopkeeper_brain_1\knowledge\processor\import_processor\temp_dir\万用表的使用.pdf",
+        "file_dir": r"D:\PyCharm项目\shopkeeper_brain_1\knowledge\processor\import_processor\temp_dir"
 
     }
 

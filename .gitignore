@@ -1,5 +1,77 @@
-# 环境与配置
-.venv/
-.idea/
+﻿# ===== Python =====
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+
+# ===== 虚拟环境 =====
+.venv/
+venv/
+env/
+**/.venv/
+**/venv/
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ===== 敏感配置 =====
+.env
+.env.local
+.env.prod
+.env.*.local
+*.key
+*.pem
+credentials.json
+
+# ===== 数据 / 模型 / 大文件 =====
+temp_data/
+knowledge/temp_data/
+models/
+knowledge/milvus_lite.db/
+你的dir/
+*.db
+*.db-shm
+*.db-wal
+*.bin
+*.onnx
+*.onnx_data.incomplete
+*.pth
+*.pt
+*.safetensors
+*.model
+*.h5
+*.ckpt
+
+# ===== 构建 =====
+build/
+dist/
+*.egg-info/
+
+# ===== 系统文件 =====
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ===== 日志 =====
+*.log
+
+# ===== 测试输出 =====
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# ===== 临时检查脚本 =====
+_check_*.py
+_run_check*.py
+_health_check*.py
+_full_check*.py
+_prod_check*.py
+_deep_check*.py
+_api_test*.py
+_final_check*.py

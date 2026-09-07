@@ -5,6 +5,8 @@ import queue
 from typing import Dict, Any, Optional, AsyncGenerator
 from fastapi import Request
 
+logger = logging.getLogger(__name__)
+
 
 class SSEEvent:
     PROGRESS = "progress"  # 任务节点进度
@@ -55,6 +57,8 @@ def push_sse_event(task_id: str, event: str, data: Dict[str, Any]):
     if stream_queue:
         # 3. 将事件推送到队列
         stream_queue.put({"event": event, "data": data})
+    else:
+        logger.debug(f"SSE 队列已不存在 (task_id={task_id}, event={event})，消息丢弃")
 
 
 async def sse_generator(task_id: str, request: Request) -> AsyncGenerator:
@@ -78,7 +82,7 @@ async def sse_generator(task_id: str, request: Request) -> AsyncGenerator:
     if sse_queue is None:
         return
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     # 3. 让当前线程一直从队列中获取数据【如果队列一旦有数据，就直接获取，如果队列没有数据，等一会，在问一下】
     try:

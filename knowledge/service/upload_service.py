@@ -8,13 +8,12 @@ from fastapi import UploadFile
 from knowledge.core.paths import get_local_base_dir
 from knowledge.processor.import_processor.exceptions import FileProcessingError
 from knowledge.utils.client.storage_clients import StorageClients
-from knowledge.processor.import_processor.main_graph import import_app
+from knowledge.processor.import_processor.main_graph import get_import_graph
 from knowledge.utils.task_util import update_task_status, add_running_task, add_done_task, add_node_duration, \
     TASK_STATUS_PROCESSING, \
     TASK_STATUS_COMPLETED, \
     TASK_STATUS_FAILED
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -54,7 +53,7 @@ class UpLoadService:
         # stream:迭代整个graph图状态可以得到每一个节点的事件(节点的名字以及节点操作完state之后的新状态)
         # 3. 运行整个导入图状态
         try:
-            for event in import_app.stream(graph_state):
+            for event in get_import_graph().stream(graph_state):
 
                 for key, value in event.items():
                     logger.info(f"当前正在执行的节点--->{key}")

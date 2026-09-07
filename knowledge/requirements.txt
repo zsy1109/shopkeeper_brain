@@ -1,9 +1,9 @@
-﻿minio
-langchain-openai
-langgraph
-sentence-transformers
-pymongo
-openai-agents
-pymilvus
+﻿mineru[all]>=3.4
+minio>=7.2
+langchain-openai>=1.6
+langgraph>=1.2
+sentence-transformers>=6.0
+pymongo>=4.18
+openai-agents>=0.22
+pymilvus[model]>=3.0
 grandalf
-mineru[all]

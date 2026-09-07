@@ -308,7 +308,7 @@ if __name__ == '__main__':
 
     # 1. 读取chunk.json
     temp_dir = Path(
-        r"D:\develop\develop\workspace\pycharm\BJ251208\shopkeeper_brain\knowledge\processor\import_processor\temp_dir")
+        r"D:\PyCharm项目\shopkeeper_brain_1\knowledge\processor\import_processor\temp_dir")
 
     chunk_json_path = temp_dir / "chunks.json"
     output_path = temp_dir / "chunks_item_name.json"

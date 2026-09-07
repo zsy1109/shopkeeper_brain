@@ -1,6 +1,9 @@
-from typing import Dict, List
+import time
+import logging
+from typing import Dict, List, Any
 from collections import defaultdict
 
+logger = logging.getLogger(__name__)
 
 """
 任务id: 主要追踪上传文件（任务）的状态流程的
@@ -17,6 +20,7 @@ _tasks_duration: Dict[str, Dict[str, float]] = defaultdict(dict)
 _tasks_result: Dict[str, Dict[str, str]] = defaultdict(dict)
 
 _tasks_status: Dict[str, str] = {}
+_tasks_timestamp: Dict[str, float] = {}
 
 TASK_STATUS_PROCESSING = "processing"  # 任务处理中
 TASK_STATUS_COMPLETED = "completed"  # 任务完成
@@ -93,6 +97,8 @@ def get_task_status(task_id: str) -> str:
 def update_task_status(task_id: str, status_name: str) -> None:
     # 1. 更新指定任务的总体运行状态（如 processing 等）
     _tasks_status[task_id] = status_name
+    # 2. 记录最后更新时间，供清理机制使用
+    _tasks_timestamp[task_id] = time.time()
 
 
 def set_task_result(task_id: str, key: str, value: str) -> None:
@@ -119,7 +125,7 @@ def get_node_durations(task_id: str) -> Dict[str, float]:
     """获取所有节点的耗时"""
     return dict(_tasks_duration.get(task_id, {}))
 
-def get_task_info(task_id: str) -> Dict[str, any]:
+def get_task_info(task_id: str) -> Dict[str, Any]:
     """
     获取任务的全局信息（状态 + 运行中节点 + 已完成节点）
     :param task_id: 任务ID
@@ -132,3 +138,29 @@ def get_task_info(task_id: str) -> Dict[str, any]:
         "durations": get_node_durations(task_id)
     }
 
+
+def cleanup_finished_tasks(max_age_seconds: float = 3600) -> int:
+    """清理已完成或失败超过 max_age_seconds 的任务数据，防止内存无限增长。
+
+    Args:
+        max_age_seconds: 完成/失败后超过此秒数才清理，默认 1 小时。
+
+    Returns:
+        本次清理的任务数量。
+    """
+    now = time.time()
+    stale_ids = [
+        tid for tid, status in _tasks_status.items()
+        if status in (TASK_STATUS_COMPLETED, TASK_STATUS_FAILED)
+        and (now - _tasks_timestamp.get(tid, 0)) > max_age_seconds
+    ]
+    for tid in stale_ids:
+        _tasks_running_list.pop(tid, None)
+        _tasks_done_list.pop(tid, None)
+        _tasks_duration.pop(tid, None)
+        _tasks_result.pop(tid, None)
+        _tasks_status.pop(tid, None)
+        _tasks_timestamp.pop(tid, None)
+    if stale_ids:
+        logger.info(f"清理了 {len(stale_ids)} 个过期任务 (max_age={max_age_seconds}s)")
+    return len(stale_ids)

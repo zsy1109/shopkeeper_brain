@@ -1,9 +1,8 @@
 import uuid, logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from typing import List,Dict,Any
-from knowledge.processor.query_processor.main_graph import query_app
+from knowledge.processor.query_processor.main_graph import get_query_graph
 from knowledge.utils.task_util import update_task_status, TASK_STATUS_PROCESSING, TASK_STATUS_FAILED, \
     TASK_STATUS_COMPLETED
 from knowledge.utils.task_util import get_task_result
@@ -50,7 +49,7 @@ class QueryService:
         # 3. 执行
         try:
             # 3.1 执行查询流程的pineline(调用的是CompiledStateGraph的invoke())
-            query_app.invoke(query_init_state)
+            get_query_graph().invoke(query_init_state)
             # 3.2 更新整个任务状态为完成状态
             update_task_status(task_id=task_id, status_name=TASK_STATUS_COMPLETED)
 
