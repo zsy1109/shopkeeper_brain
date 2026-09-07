@@ -30,6 +30,7 @@ credentials.json
 temp_data/
 knowledge/temp_data/
 knowledge/processor/import_processor/temp_dir/
+knowledge/掌柜智库面试指南.md
 models/
 knowledge/milvus_lite.db/
 你的dir/
