@@ -5,6 +5,7 @@ Milvus 三种向量检索演示
 
 from pymilvus import MilvusClient, DataType, AnnSearchRequest, WeightedRanker
 from pymilvus.model.hybrid import BGEM3EmbeddingFunction
+import os
 import time
 
 # ─────────────────────────────────────────────────────────
@@ -146,7 +147,7 @@ def main():
     print("Milvus 三种向量检索演示")
     print("=" * 50)
 
-    client = MilvusClient(uri="http://192.168.200.145:19530")
+    client = MilvusClient(uri=os.getenv("MILVUS_URI", "http://localhost:19530"))
     embedding_model = AIClients.get_bge_m3_client()
 
     create_collection(client)

@@ -88,7 +88,7 @@ class ImportConfig:
         """从环境变量加载配置"""
         return cls()
 
-    # http://192.168.200.130:9000/
+    # http://your-minio-endpoint:9000/
     def get_minio_base_url(self):
         base_protocol = "https://" if self.minio_secure else "http://"
         return base_protocol + f"{self.minio_endpoint}"

@@ -1,7 +1,8 @@
+import os
 from pymongo import MongoClient
 
 # 连接 MongoDB
-client = MongoClient("mongodb://admin:123456@192.168.200.145:27017")
+client = MongoClient(os.getenv("MONGO_URI", "mongodb://user:password@localhost:27017"))
 # # 选择数据库（不存在则自动创建）
 db = client["mydb"]
 # # 选择集合（不存在则自动创建）

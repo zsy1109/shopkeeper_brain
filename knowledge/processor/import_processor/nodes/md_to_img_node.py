@@ -500,7 +500,7 @@ class _ImageUploader:
                 minio_client.fput_object(
                     minio_bucket_name, object_name, img_info.path)
                 # 2.2 自己拼装路径
-                # http://192.168.200.145:9000/桶名/对象名
+                # http://your-minio-endpoint:9000/桶名/对象名
                 self.logger.info(f"成功将图片{img_info.name}上传到MinIO中")
                 remote_urls[img_info.name] = f"{minio_url}/{minio_bucket_name}/{object_name}"
             except Exception as e:

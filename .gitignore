@@ -29,6 +29,7 @@ credentials.json
 # ===== 数据 / 模型 / 大文件 =====
 temp_data/
 knowledge/temp_data/
+knowledge/processor/import_processor/temp_dir/
 models/
 knowledge/milvus_lite.db/
 你的dir/

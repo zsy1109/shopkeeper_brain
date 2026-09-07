@@ -1,11 +1,12 @@
 """
 学生管理小程序 —— 演示 PyMongo 的完整 CRUD 操作
 """
+import os
 from pymongo import MongoClient
 
 def get_collection():
     """获取数据库集合。"""
-    client = MongoClient("mongodb://admin:123456@192.168.200.145:27017")
+    client = MongoClient(os.getenv("MONGO_URI", "mongodb://user:password@localhost:27017"))
     return client["school"]["students"]
 
 

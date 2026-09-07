@@ -1,16 +1,16 @@
+import os
 from minio import Minio
 from minio.error import S3Error
 
 def main():
     # 1. 实例化MinIO客户端
-    client = Minio("192.168.200.145:9000",
-                   access_key="minioadmin",
-                   secret_key="minioadmin",
+    client = Minio(os.getenv("MINIO_ENDPOINT", "localhost:9000"),
+                   access_key=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
+                   secret_key=os.getenv("MINIO_SECRET_KEY", "minioadmin"),
                    secure=False
                    )
 
-    # 2. 上传的文件地址
-    source_file = "C:\\Users\\Administrator\\Pictures\\3.png"
+    source_file = r"C:\path\to\your\file.png"
 
     # 3. 桶名
     bucket_name = "python-test-bucket"
