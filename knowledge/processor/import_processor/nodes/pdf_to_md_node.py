@@ -1,12 +1,10 @@
-import contextlib
-import io
 import json
+import os
+import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Tuple
-
-import click
-from mineru.cli.client import main as mineru_main
 
 from knowledge.processor.import_processor.base import BaseNode, setup_logging
 from knowledge.processor.import_processor.exceptions import PdfConversionError, StateFieldError
@@ -74,7 +72,8 @@ class PdfToMdNode(BaseNode):
     def _execute_mineru_parse(self, import_file_path_obj: Path,
                               file_dir_obj: Path) -> int:
         """
-        调用 mineru CLI 将 PDF 解析为 Markdown
+        通过独立子进程调用 mineru CLI 将 PDF 解析为 Markdown。
+        使用子进程避免 MinerU 内部的多进程架构崩溃时连带杀死 FastAPI 进程。
 
         :param import_file_path_obj: 解析文件的 path 路径
         :param file_dir_obj: 解析后的文件输出目录
@@ -82,27 +81,44 @@ class PdfToMdNode(BaseNode):
         """
         start_time = time.time()
 
-        args = [
-            "-p", str(import_file_path_obj),
-            "-o", str(file_dir_obj),
-            "-b", "pipeline",
-            "-m", "txt",
-            "-l", "ch",
+        env = os.environ.copy()
+        env.setdefault('MINERU_DEVICE_MODE', 'cpu')
+        env.setdefault('HF_ENDPOINT', 'https://hf-mirror.com')
+        env['CUDA_VISIBLE_DEVICES'] = ''
+        env.setdefault('OPENBLAS_NUM_THREADS', '1')
+        env.setdefault('OMP_NUM_THREADS', '1')
+        env.setdefault('MKL_NUM_THREADS', '1')
+
+        cmd = [
+            sys.executable,
+            '-m', 'mineru.cli.client',
+            '-p', str(import_file_path_obj),
+            '-o', str(file_dir_obj),
+            '-b', 'pipeline',
+            '-m', 'txt',
+            '-l', 'ch',
         ]
 
-        exit_code = 0
-        output_buf = io.StringIO()
-        try:
-            with contextlib.redirect_stdout(output_buf), contextlib.redirect_stderr(output_buf):
-                mineru_main(args=args, standalone_mode=False)
-        except click.exceptions.Exit as e:
-            exit_code = e.exit_code
-        except Exception as e:
-            self.logger.error(f"MinerU解析异常: {e}")
-            exit_code = 1
+        self.logger.info(f"启动 MinerU 子进程: {' '.join(cmd)}")
 
-        for line in output_buf.getvalue().splitlines():
-            self.logger.info(f"MinerU: {line}")
+        try:
+            result = subprocess.run(
+                cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            exit_code = result.returncode
+
+            for line in (result.stdout or '').splitlines():
+                if line.strip():
+                    self.logger.info(f"MinerU OUT: {line}")
+            for line in (result.stderr or '').splitlines():
+                if line.strip():
+                    self.logger.info(f"MinerU ERR: {line}")
+        except Exception as e:
+            self.logger.error(f"MinerU 子进程启动失败: {e}")
+            exit_code = 1
 
         end_time = time.time()
         if exit_code == 0:
