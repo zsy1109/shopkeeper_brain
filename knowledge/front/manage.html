@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智问助手 · 知识库管理</title>
+    <style>
+        :root{
+            --bg-0:#0a0f1e;
+            --bg-1:#0f172a;
+            --panel:rgba(22, 33, 56, 0.65);
+            --text:#e2e8f0;
+            --muted:#94a3b8;
+            --dim:#64748b;
+            --brand:#38bdf8;
+            --brand-2:#818cf8;
+            --brand-3:#f472b6;
+            --success:#10b981;
+            --warning:#f59e0b;
+            --error:#ef4444;
+            --border:rgba(148, 163, 184, 0.12);
+            --border-strong:rgba(148, 163, 184, 0.22);
+            --shadow-lg:0 25px 50px -12px rgba(0, 0, 0, 0.6);
+            --radius-lg:16px;
+            --radius-md:12px;
+            --radius-sm:8px;
+        }
+        *{box-sizing:border-box;margin:0;padding:0}
+        html,body{min-height:100%}
+        body {
+            font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, Arial, sans-serif;
+            margin: 0;
+            padding: 24px 20px;
+            display: flex;
+            justify-content: center;
+            background: var(--bg-0);
+            color:var(--text);
+            min-height:100vh;
+            position:relative;
+        }
+        body::before{
+            content:'';position:fixed;inset:0;z-index:0;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56,189,248,0.12), transparent),
+                radial-gradient(circle at 15% 20%, rgba(129,140,248,0.10), transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(244,114,182,0.08), transparent 40%),
+                linear-gradient(to bottom, var(--bg-0), var(--bg-1));
+        }
+        body::after{
+            content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+            background-image:
+                linear-gradient(to right, rgba(148,163,184,0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148,163,184,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 100%);
+        }
+
+        .app{
+            position:relative;z-index:1;
+            width:100%;
+            max-width:1060px;
+            background:var(--panel);
+            backdrop-filter: blur(20px) saturate(1.2);
+            -webkit-backdrop-filter: blur(20px) saturate(1.2);
+            border:1px solid var(--border);
+            border-radius:var(--radius-lg);
+            box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.05);
+            overflow:hidden;
+            display:flex;flex-direction:column;min-height:min(860px,94vh);
+        }
+        .app::before{
+            content:'';position:absolute;top:-1px;left:20%;right:20%;height:1px;
+            background:linear-gradient(90deg, transparent, rgba(56,189,248,0.6), rgba(129,140,248,0.6), transparent);
+        }
+
+        .topbar{
+            display:flex;align-items:center;gap:16px;flex-shrink:0;
+            padding:18px 24px;
+            border-bottom:1px solid var(--border);
+            background:linear-gradient(180deg, rgba(15,23,42,0.7), rgba(15,23,42,0.3));
+        }
+        .brand{display:flex;align-items:center;gap:14px;flex-shrink:0}
+        .logo{
+            width:42px;height:42px;border-radius:12px;flex-shrink:0;
+            background:linear-gradient(135deg, var(--brand), var(--brand-2) 60%, var(--brand-3));
+            display:flex;align-items:center;justify-content:center;
+            box-shadow:0 0 24px rgba(56,189,248,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
+        }
+        .logo svg{width:22px;height:22px;color:#fff}
+        .title{display:flex;flex-direction:column;line-height:1.2}
+        .title h1{
+            font-size:16px;font-weight:700;letter-spacing:0.5px;
+            background:linear-gradient(90deg, #f1f5f9, #cbd5e1);
+            -webkit-background-clip:text;background-clip:text;color:transparent;
+        }
+        .title span{font-size:12px;color:var(--muted);margin-top:4px}
+
+        .nav-tabs{display:flex;gap:4px;margin-left:auto;padding:4px;border-radius:var(--radius-md);background:rgba(15,23,42,0.5);border:1px solid var(--border)}
+        .nav-tab{
+            display:flex;align-items:center;gap:6px;
+            padding:6px 14px;border-radius:var(--radius-sm);
+            font-size:13px;color:var(--muted);cursor:pointer;user-select:none;
+            transition:all 0.2s;text-decoration:none;border:none;background:transparent;
+        }
+        .nav-tab:hover{color:var(--text);background:rgba(148,163,184,0.08)}
+        .nav-tab.active{
+            color:#fff;
+            background:linear-gradient(135deg, rgba(56,189,248,0.25), rgba(129,140,248,0.25));
+            box-shadow:inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+        .nav-tab svg{width:14px;height:14px}
+
+        .main{padding:24px;flex:1;overflow-y:auto}
+
+        .toolbar{
+            display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;
+        }
+        .search-box{
+            flex:1;min-width:240px;
+            display:flex;align-items:center;gap:8px;
+            padding:10px 14px;border-radius:var(--radius-md);
+            border:1px solid var(--border);background:rgba(15,23,42,0.5);
+            transition:all 0.2s;
+        }
+        .search-box:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px rgba(56,189,248,0.12)}
+        .search-box svg{width:16px;height:16px;color:var(--dim);flex-shrink:0}
+        .search-box input{
+            flex:1;background:transparent;border:none;outline:none;
+            color:var(--text);font-size:13px;
+        }
+        .search-box input::placeholder{color:var(--dim)}
+
+        .filter-group{display:flex;gap:8px}
+        .filter-chip{
+            padding:7px 14px;border-radius:20px;font-size:12px;
+            background:rgba(15,23,42,0.5);border:1px solid var(--border);
+            color:var(--muted);cursor:pointer;transition:all 0.2s;user-select:none;
+        }
+        .filter-chip:hover{color:var(--text)}
+        .filter-chip.active{
+            color:#fff;border-color:var(--brand);
+            background:linear-gradient(135deg, rgba(56,189,248,0.2), rgba(129,140,248,0.2));
+        }
+
+        .stats-row{
+            display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;
+        }
+        .stat-card{
+            flex:1;min-width:140px;
+            padding:14px 18px;border-radius:var(--radius-md);
+            background:rgba(15,23,42,0.4);border:1px solid var(--border);
+        }
+        .stat-card .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+        .stat-card .value{
+            font-size:22px;font-weight:700;margin-top:6px;
+            background:linear-gradient(135deg, var(--brand), var(--brand-2));
+            -webkit-background-clip:text;background-clip:text;color:transparent;
+        }
+
+        .file-list{display:flex;flex-direction:column;gap:12px}
+        .file-card{
+            display:flex;align-items:center;gap:14px;
+            padding:16px 18px;border-radius:var(--radius-md);
+            background:rgba(15,23,42,0.4);border:1px solid var(--border);
+            transition:all 0.25s;
+        }
+        .file-card:hover{
+            border-color:var(--border-strong);
+            transform:translateY(-1px);
+            box-shadow:0 8px 24px rgba(0,0,0,0.3);
+        }
+        .file-icon{
+            width:46px;height:46px;border-radius:10px;flex-shrink:0;
+            display:flex;align-items:center;justify-content:center;
+            font-size:11px;font-weight:700;letter-spacing:0.5px;
+            text-transform:uppercase;
+        }
+        .file-icon.pdf{background:linear-gradient(135deg, #ef4444, #b91c1c);color:#fff;box-shadow:0 4px 16px rgba(239,68,68,0.3)}
+        .file-icon.md{background:linear-gradient(135deg, #10b981, #047857);color:#fff;box-shadow:0 4px 16px rgba(16,185,129,0.3)}
+        .file-icon.other{background:linear-gradient(135deg, #818cf8, #6366f1);color:#fff;box-shadow:0 4px 16px rgba(129,140,248,0.3)}
+        .file-icon svg{width:22px;height:22px}
+
+        .file-info{flex:1;min-width:0}
+        .file-name{
+            font-size:14px;font-weight:600;color:var(--text);
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        }
+        .file-meta{
+            display:flex;gap:10px;margin-top:5px;flex-wrap:wrap;
+            font-size:12px;color:var(--muted);
+        }
+        .file-meta span{display:flex;align-items:center;gap:4px}
+        .file-meta svg{width:12px;height:12px}
+
+        .badge{
+            display:inline-flex;align-items:center;gap:4px;
+            padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
+        }
+        .badge.completed{background:rgba(16,185,129,0.15);color:var(--success);border:1px solid rgba(16,185,129,0.3)}
+        .badge.failed{background:rgba(239,68,68,0.15);color:var(--error);border:1px solid rgba(239,68,68,0.3)}
+        .badge.processing{background:rgba(56,189,248,0.15);color:var(--brand);border:1px solid rgba(56,189,248,0.3)}
+
+        .file-actions{display:flex;gap:6px;flex-shrink:0}
+        .btn-icon{
+            width:34px;height:34px;border-radius:8px;border:1px solid var(--border);
+            background:rgba(15,23,42,0.4);color:var(--muted);cursor:pointer;
+            display:flex;align-items:center;justify-content:center;
+            transition:all 0.2s;
+        }
+        .btn-icon:hover{color:var(--text);border-color:var(--border-strong);background:rgba(148,163,184,0.1)}
+        .btn-icon.danger:hover{color:var(--error);border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.1)}
+        .btn-icon svg{width:15px;height:15px}
+
+        .empty-state{
+            text-align:center;padding:60px 24px;color:var(--muted);
+        }
+        .empty-state svg{width:64px;height:64px;color:var(--dim);margin-bottom:16px}
+        .empty-state h3{font-size:15px;color:var(--text);font-weight:600;margin-bottom:6px}
+        .empty-state p{font-size:13px}
+
+        .modal-overlay{
+            position:fixed;inset:0;z-index:100;
+            background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);
+            display:none;align-items:center;justify-content:center;padding:20px;
+        }
+        .modal-overlay.show{display:flex}
+        .modal{
+            width:100%;max-width:720px;max-height:min(80vh,640px);
+            background:linear-gradient(180deg, rgba(22,33,56,0.98), rgba(15,23,42,0.98));
+            border:1px solid var(--border-strong);border-radius:var(--radius-lg);
+            box-shadow:var(--shadow-lg);overflow:hidden;display:flex;flex-direction:column;
+        }
+        .modal-header{
+            display:flex;align-items:center;gap:12px;
+            padding:18px 22px;border-bottom:1px solid var(--border);
+        }
+        .modal-header h2{font-size:15px;font-weight:600;flex:1;color:var(--text)}
+        .modal-header .close-btn{
+            width:30px;height:30px;border-radius:8px;border:none;background:transparent;
+            color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;
+            transition:all 0.2s;
+        }
+        .modal-header .close-btn:hover{background:rgba(148,163,184,0.1);color:var(--text)}
+        .modal-header .close-btn svg{width:18px;height:18px}
+
+        .modal-body{padding:20px 22px;overflow-y:auto;flex:1}
+
+        .detail-section{margin-bottom:22px}
+        .detail-section h3{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+        .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}
+        .detail-item{font-size:13px}
+        .detail-item .k{color:var(--dim);font-size:11px;display:block;margin-bottom:3px}
+        .detail-item .v{color:var(--text);word-break:break-all}
+
+        .chunk-list{display:flex;flex-direction:column;gap:8px}
+        .chunk-card{
+            padding:12px 14px;border-radius:var(--radius-sm);
+            background:rgba(15,23,42,0.5);border:1px solid var(--border);
+            font-size:13px;line-height:1.55;
+        }
+        .chunk-card .chunk-head{
+            display:flex;justify-content:space-between;align-items:center;
+            font-size:11px;color:var(--muted);margin-bottom:6px;
+        }
+        .chunk-card .chunk-content{
+            color:var(--text);
+            white-space:pre-wrap;word-break:break-word;
+            max-height:120px;overflow:hidden;
+        }
+        .chunk-card .chunk-content.expanded{max-height:none}
+        .chunk-card .toggle-btn{
+            margin-top:6px;font-size:11px;color:var(--brand);cursor:pointer;background:none;border:none;padding:0;
+        }
+
+        .pagination{
+            display:flex;justify-content:center;align-items:center;gap:8px;
+            padding:14px 0;margin-top:12px;
+        }
+        .pagination button{
+            padding:6px 14px;border-radius:var(--radius-sm);
+            background:rgba(15,23,42,0.5);border:1px solid var(--border);
+            color:var(--text);cursor:pointer;font-size:12px;
+            transition:all 0.2s;
+        }
+        .pagination button:hover:not(:disabled){border-color:var(--brand)}
+        .pagination button:disabled{opacity:0.4;cursor:not-allowed}
+        .pagination .page-info{font-size:12px;color:var(--muted)}
+
+        .toast{
+            position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+            padding:10px 20px;border-radius:var(--radius-md);
+            background:rgba(15,23,42,0.95);border:1px solid var(--border-strong);
+            color:var(--text);font-size:13px;opacity:0;pointer-events:none;
+            transition:all 0.3s;z-index:200;
+        }
+        .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+        .toast.success{border-color:rgba(16,185,129,0.5)}
+        .toast.error{border-color:rgba(239,68,68,0.5)}
+
+        .confirm-box{
+            background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);
+            border-radius:var(--radius-md);padding:18px;margin-top:16px;
+            text-align:center;
+        }
+        .confirm-box p{font-size:13px;color:var(--text);margin-bottom:14px}
+        .confirm-box .danger-name{color:var(--error);font-weight:600}
+        .confirm-box .confirm-actions{display:flex;gap:10px;justify-content:center}
+        .btn-danger,.btn-cancel{
+            padding:8px 20px;border-radius:var(--radius-sm);border:none;cursor:pointer;
+            font-size:13px;transition:all 0.2s;
+        }
+        .btn-danger{background:var(--error);color:#fff}
+        .btn-danger:hover{background:#dc2626}
+        .btn-cancel{background:rgba(148,163,184,0.15);color:var(--muted);border:1px solid var(--border)}
+        .btn-cancel:hover{color:var(--text)}
+
+        @media(max-width:640px){
+            .detail-grid{grid-template-columns:1fr}
+            .nav-tabs{margin-left:0;margin-top:12px;width:100%;justify-content:center}
+            .topbar{flex-wrap:wrap}
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="topbar">
+        <div class="brand">
+            <div class="logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                </svg>
+            </div>
+            <div class="title">
+                <h1>智问助手</h1>
+                <span>知识库管理 · 查看、预览与清理已入库文档</span>
+            </div>
+        </div>
+        <div class="nav-tabs">
+            <a class="nav-tab" href="import.html">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                导入
+            </a>
+            <a class="nav-tab active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                管理
+            </a>
+            <a class="nav-tab" href="chat.html">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                聊天
+            </a>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="toolbar">
+            <div class="search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="searchInput" placeholder="搜索文件名或商品名...">
+            </div>
+            <div class="filter-group">
+                <button class="filter-chip active" data-filter="all">全部</button>
+                <button class="filter-chip" data-filter="completed">已完成</button>
+                <button class="filter-chip" data-filter="failed">失败</button>
+            </div>
+        </div>
+
+        <div class="stats-row" id="statsRow"></div>
+
+        <div class="file-list" id="fileList">
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <h3>正在加载文件列表...</h3>
+                <p>稍等片刻</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="detailModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="modalTitle">文件详情</h2>
+            <button class="close-btn" onclick="closeModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = (() => {
+    const p = location.port;
+    if (p === '8001') return 'http://localhost:8000';
+    return location.protocol + '//' + location.host;
+})();
+
+let allFiles = [];
+let currentFilter = 'all';
+let chunkPage = 0;
+const CHUNKS_PER_PAGE = 200;
+let currentChunksFileId = null;
+
+async function loadFiles() {
+    const listEl = document.getElementById('fileList');
+    try {
+        const resp = await fetch(API_BASE + '/files');
+        const data = await resp.json();
+        allFiles = data.items || [];
+        renderStats();
+        renderList();
+    } catch(e) {
+        listEl.innerHTML = `
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <h3>无法连接到后端</h3>
+                <p>${API_BASE} — 请确认导入服务已启动</p>
+            </div>`;
+    }
+}
+
+function renderStats() {
+    const total = allFiles.length;
+    const totalChunks = allFiles.reduce((s,f) => s + (f.chunk_count || 0), 0);
+    const completed = allFiles.filter(f => f.status === 'completed').length;
+    const failed = allFiles.filter(f => f.status === 'failed').length;
+    document.getElementById('statsRow').innerHTML = `
+        <div class="stat-card"><div class="label">文档总数</div><div class="value">${total}</div></div>
+        <div class="stat-card"><div class="label">已入库 Chunks</div><div class="value">${totalChunks}</div></div>
+        <div class="stat-card"><div class="label">已完成</div><div class="value">${completed}</div></div>
+        <div class="stat-card"><div class="label">失败</div><div class="value">${failed}</div></div>
+    `;
+}
+
+function fileIconClass(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    if (ext === 'pdf') return 'pdf';
+    if (ext === 'md') return 'md';
+    return 'other';
+}
+
+function filterFiles() {
+    const q = document.getElementById('searchInput').value.trim().toLowerCase();
+    return allFiles.filter(f => {
+        if (currentFilter !== 'all' && f.status !== currentFilter) return false;
+        if (q) {
+            const hay = (f.filename + ' ' + (f.item_name || '') + ' ' + (f.file_title || '')).toLowerCase();
+            if (!hay.includes(q)) return false;
+        }
+        return true;
+    });
+}
+
+function formatTime(ts) {
+    if (!ts) return '-';
+    const d = new Date(ts * 1000);
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function renderList() {
+    const listEl = document.getElementById('fileList');
+    const filtered = filterFiles();
+
+    if (filtered.length === 0) {
+        listEl.innerHTML = `
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <h3>没有匹配的文件</h3>
+                <p>${currentFilter !== 'all' ? '试试切换筛选条件' : '还没有导入任何文档'}</p>
+            </div>`;
+        return;
+    }
+
+    listEl.innerHTML = filtered.map(f => {
+        const ic = fileIconClass(f.filename);
+        const ext = f.filename.split('.').pop().toUpperCase();
+        const badgeClass = f.status === 'completed' ? 'completed' : f.status === 'failed' ? 'failed' : 'processing';
+        const statusText = f.status === 'completed' ? '已入库' : f.status === 'failed' ? '失败' : '处理中';
+        return `
+        <div class="file-card">
+            <div class="file-icon ${ic}">
+                ${ic === 'pdf' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' : ic === 'md' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' : ext}
+            </div>
+            <div class="file-info">
+                <div class="file-name">${escapeHtml(f.filename)}</div>
+                <div class="file-meta">
+                    <span class="badge ${badgeClass}">${statusText}</span>
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>${escapeHtml(f.item_name || '未识别')}</span>
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>${f.chunk_count || 0} chunks</span>
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${formatTime(f.import_time)}</span>
+                </div>
+            </div>
+            <div class="file-actions">
+                <button class="btn-icon" title="查看详情" onclick="openDetail('${f.file_id}')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                <button class="btn-icon danger" title="删除" onclick="openDelete('${f.file_id}', '${escapeHtml(f.filename)}')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+}
+
+document.getElementById('searchInput').addEventListener('input', renderList);
+document.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        renderList();
+    });
+});
+
+function openModal() { document.getElementById('detailModal').classList.add('show'); }
+function closeModal() { document.getElementById('detailModal').classList.remove('show'); }
+
+async function openDetail(fileId) {
+    const f = allFiles.find(x => x.file_id === fileId);
+    if (!f) return;
+    document.getElementById('modalTitle').textContent = f.filename;
+
+    chunkPage = 0;
+    currentChunksFileId = fileId;
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = `
+        <div class="detail-section">
+            <h3>基础信息</h3>
+            <div class="detail-grid">
+                <div class="detail-item"><span class="k">状态</span><span class="v"><span class="badge ${f.status === 'completed' ? 'completed' : f.status === 'failed' ? 'failed' : 'processing'}">${f.status}</span></span></div>
+                <div class="detail-item"><span class="k">导入时间</span><span class="v">${formatTime(f.import_time)}</span></div>
+                <div class="detail-item"><span class="k">商品名</span><span class="v">${escapeHtml(f.item_name || '-')}</span></div>
+                <div class="detail-item"><span class="k">文件标题</span><span class="v">${escapeHtml(f.file_title || '-')}</span></div>
+                <div class="detail-item"><span class="k">切片数量</span><span class="v">${f.chunk_count || 0}</span></div>
+                <div class="detail-item"><span class="k">任务 ID</span><span class="v">${escapeHtml(f.task_id || '-')}</span></div>
+                <div class="detail-item" style="grid-column:1/-1"><span class="k">MinIO 路径</span><span class="v" style="font-family:monospace;font-size:12px">${escapeHtml(f.minio_object_path || '-')}</span></div>
+            </div>
+        </div>
+        <div class="detail-section">
+            <h3>Chunks 预览（Milvus 中的向量切片）</h3>
+            <div id="chunkList"><div style="text-align:center;color:var(--muted);padding:20px">加载中...</div></div>
+            <div class="pagination" id="chunkPager"></div>
+        </div>
+    `;
+    openModal();
+    await loadChunks(fileId, 0);
+}
+
+async function loadChunks(fileId, page) {
+    chunkPage = page;
+    try {
+        const resp = await fetch(`${API_BASE}/files/${fileId}/chunks?limit=${CHUNKS_PER_PAGE}&offset=${page * CHUNKS_PER_PAGE}`);
+        const data = await resp.json();
+        const chunks = data.items || [];
+        const listEl = document.getElementById('chunkList');
+        if (!chunks.length) {
+            listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">该文件暂无可预览的 chunks</div>';
+        } else {
+            listEl.innerHTML = chunks.map((c, i) => {
+                const content = c.content || '';
+                const truncated = content.length > 300;
+                return `
+                <div class="chunk-card">
+                    <div class="chunk-head">
+                        <span>#${page * CHUNKS_PER_PAGE + i + 1}</span>
+                        <span>${escapeHtml(c.title || c.parent_title || '')}</span>
+                    </div>
+                    <div class="chunk-content ${truncated ? '' : 'expanded'}">${escapeHtml(content)}</div>
+                    ${truncated ? '<button class="toggle-btn" onclick="toggleChunk(this)">展开/折叠</button>' : ''}
+                </div>`;
+            }).join('');
+        }
+        const pagerEl = document.getElementById('chunkPager');
+        const more = chunks.length === CHUNKS_PER_PAGE;
+        pagerEl.innerHTML = `
+            <button ${page === 0 ? 'disabled' : ''} onclick="loadChunks('${fileId}', ${page - 1})">上一页</button>
+            <span class="page-info">第 ${page + 1} 页 · ${chunks.length} 条</span>
+            <button ${!more ? 'disabled' : ''} onclick="loadChunks('${fileId}', ${page + 1})">下一页</button>
+        `;
+    } catch(e) {
+        document.getElementById('chunkList').innerHTML = '<div style="text-align:center;color:var(--error);padding:20px">加载失败</div>';
+    }
+}
+
+function toggleChunk(btn) {
+    const content = btn.previousElementSibling;
+    content.classList.toggle('expanded');
+}
+
+let deleteTarget = null;
+function openDelete(fileId, filename) {
+    deleteTarget = fileId;
+    document.getElementById('modalTitle').textContent = '删除确认';
+    document.getElementById('modalBody').innerHTML = `
+        <div class="confirm-box">
+            <p>确定要删除文件 <span class="danger-name">${filename}</span> 吗？</p>
+            <p style="font-size:12px;color:var(--muted)">将同时清理 Milvus 向量、Mongo 记录和 MinIO 原文件，此操作不可撤销。</p>
+            <div class="confirm-actions">
+                <button class="btn-cancel" onclick="closeModal()">取消</button>
+                <button class="btn-danger" onclick="confirmDelete()">确认删除</button>
+            </div>
+        </div>
+    `;
+    openModal();
+}
+
+async function confirmDelete() {
+    if (!deleteTarget) return;
+    try {
+        const resp = await fetch(`${API_BASE}/files/${deleteTarget}`, { method: 'DELETE' });
+        const data = await resp.json();
+        if (resp.ok) {
+            showToast('删除成功', 'success');
+            closeModal();
+            await loadFiles();
+        } else {
+            showToast(data.detail || '删除失败', 'error');
+        }
+    } catch(e) {
+        showToast('删除请求失败', 'error');
+    }
+    deleteTarget = null;
+}
+
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + (type || '');
+    setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+document.getElementById('detailModal').addEventListener('click', e => {
+    if (e.target.id === 'detailModal') closeModal();
+});
+
+loadFiles();
+</script>
+</body>
+</html>

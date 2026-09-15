@@ -1,3 +1,4 @@
+import os
 import os.path
 import logging
 import shutil
@@ -13,6 +14,8 @@ from knowledge.utils.task_util import update_task_status, add_running_task, add_
     TASK_STATUS_PROCESSING, \
     TASK_STATUS_COMPLETED, \
     TASK_STATUS_FAILED
+from knowledge.utils import mongo_import_util
+from knowledge.utils import milvus_util
 
 logger = logging.getLogger(__name__)
 
@@ -28,43 +31,73 @@ class UpLoadService:
     处理文件上传相关的逻辑
     """
 
-    def run_import_graph(self, task_id: str, import_file_path: str, file_dir: str):
+    def run_import_graph(self, task_id: str, import_file_path: str, file_dir: str, minio_object_path: str = ""):
         """
         运行整个图谱流程
         Args:
             task_id:
             import_file_path:
             file_dir:
+            minio_object_path:
 
         Returns:
 
         """
 
-        # 1. 更新任务状态为processing
         update_task_status(task_id, TASK_STATUS_PROCESSING)
 
-        # 2. 定义运行graph流程的状态
         graph_state = {
             "task_id": task_id,
             "import_file_path": import_file_path,
             "file_dir": file_dir
         }
 
-        # stream:迭代整个graph图状态可以得到每一个节点的事件(节点的名字以及节点操作完state之后的新状态)
-        # 3. 运行整个导入图状态
+        final_state: dict = {}
+        import_ok = False
         try:
             for event in get_import_graph().stream(graph_state):
-
                 for key, value in event.items():
                     logger.info(f"当前正在执行的节点--->{key}")
+                    final_state = value
 
-            # 3.1 更新任务为已完成
             update_task_status(task_id, TASK_STATUS_COMPLETED)
+            import_ok = True
         except Exception as e:
             logger.error(f"[{task_id}] 执行导入过程中出现异常 原因{str(e)}")
-
-            # 3.2 更新任务为失败
             update_task_status(task_id, TASK_STATUS_FAILED)
+
+        self._write_import_record(
+            task_id=task_id,
+            import_file_path=import_file_path,
+            minio_object_path=minio_object_path,
+            final_state=final_state,
+            import_ok=import_ok,
+        )
+
+    def _write_import_record(self,
+                             task_id: str,
+                             import_file_path: str,
+                             minio_object_path: str,
+                             final_state: dict,
+                             import_ok: bool):
+        filename = os.path.basename(import_file_path)
+        file_title = final_state.get("file_title", filename.rsplit(".", 1)[0] if "." in filename else filename)
+        item_name = final_state.get("item_name", "")
+        chunks = final_state.get("chunks", [])
+        chunk_count = len(chunks) if isinstance(chunks, list) else 0
+
+        record_status = "completed" if import_ok else "failed"
+
+        mongo_import_util.create_import_record(
+            task_id=task_id,
+            filename=filename,
+            file_title=file_title,
+            item_name=item_name,
+            chunk_count=chunk_count,
+            status=record_status,
+            minio_object_path=minio_object_path,
+            import_file_path=import_file_path,
+        )
 
     def process_upload_file(self, file: UploadFile):
         """
@@ -96,13 +129,13 @@ class UpLoadService:
         import_file_path = self.save_upload_file_to_local(file, file_dir)
 
         # 5. 保存文件到minio中
-        self.save_upload_file_to_minio(import_file_path, file.filename)
+        minio_object_path = self.save_upload_file_to_minio(import_file_path, file.filename)
         end_time = time.time()
         add_done_task(task_id, "upload_file")
         add_node_duration(task_id, "upload_file", end_time - start_time)
 
         # 6. 返回图谱的信息
-        return task_id, import_file_path, file_dir
+        return task_id, import_file_path, file_dir, minio_object_path
 
     def save_upload_file_to_local(self, file: UploadFile, file_dir: str) -> str:
         """
@@ -132,7 +165,7 @@ class UpLoadService:
         # 4. 返回导入的文件路径
         return import_file_path
 
-    def save_upload_file_to_minio(self, import_file_path: str, filename: str):
+    def save_upload_file_to_minio(self, import_file_path: str, filename: str) -> str:
         """
 
         Args:
@@ -140,6 +173,7 @@ class UpLoadService:
             filename: 上传文件的名字
 
         Returns:
+            minio_object_path 上传到 MinIO 的对象路径
 
         """
 
@@ -148,7 +182,7 @@ class UpLoadService:
             minio_client = StorageClients.get_minio_client()
         except ConnectionError as e:
             logger.error(f"MinIO客户端获取失败 原因:{str(e)}")
-            return
+            return ""
 
         # 2. 获取minio相关信息
         bucket_name = os.getenv('MINIO_BUCKET_NAME')
@@ -157,5 +191,7 @@ class UpLoadService:
         # 3. 上传
         try:
             minio_client.fput_object(bucket_name, object_name, import_file_path)
+            return object_name
         except Exception as e:
             logger.error(f"{filename}上传到MinIO失败 原因：{str(e)}")
+            return ""

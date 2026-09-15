@@ -1,7 +1,8 @@
 import os.path
+import os
 
 import uvicorn
-from fastapi import FastAPI, UploadFile, Depends, BackgroundTasks
+from fastapi import FastAPI, UploadFile, Depends, BackgroundTasks, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,6 +11,10 @@ from knowledge.schema.upload_schema import UploadResponse,TaskStatusResponse
 from knowledge.service.upload_service import UpLoadService
 from knowledge.core.deps import get_upload_file_service
 from knowledge.utils.task_util import get_task_info
+from knowledge.utils import mongo_import_util
+from knowledge.utils import milvus_util
+from knowledge.utils.client.storage_clients import StorageClients
+from knowledge.service import delete_service
 
 
 # 1. 创建fastapi实例
@@ -66,10 +71,13 @@ def register_router(app: FastAPI):
         Returns:
         """
         # 1. 将上传的文件写入到本地临时目录以及远程MinIO
-        task_id, import_file_path, file_dir = upload_service.process_upload_file(file)
+        task_id, import_file_path, file_dir, minio_object_path = upload_service.process_upload_file(file)
 
         # 2. 运行整个导入的图谱(耗时：节点多【pdf解析很慢】)后台任务慢慢做
-        background_tasks.add_task(upload_service.run_import_graph, task_id, import_file_path, file_dir)
+        background_tasks.add_task(
+            upload_service.run_import_graph,
+            task_id, import_file_path, file_dir, minio_object_path,
+        )
 
         # 3. 返回上传后的响应（数据模型）
         return UploadResponse(message=f"{file.filename}文件上传成功", task_id=task_id)
@@ -86,6 +94,52 @@ def register_router(app: FastAPI):
         task_info = get_task_info(task_id)
 
         return TaskStatusResponse(**task_info)
+
+    # ── 知识库管理 ──
+
+    @app.get("/files")
+    def list_files_endpoint(limit: int = Query(default=200, ge=1, le=1000)):
+        """获取已导入文件列表"""
+        records = mongo_import_util.list_import_records(limit=limit)
+        return {"total": len(records), "items": records}
+
+    @app.get("/files/{file_id}")
+    def get_file_endpoint(file_id: str):
+        """获取单个文件的导入详情"""
+        record = mongo_import_util.get_import_record(file_id)
+        if not record:
+            raise HTTPException(status_code=404, detail=f"文件记录不存在 (file_id={file_id})")
+        return record
+
+    @app.get("/files/{file_id}/chunks")
+    def get_file_chunks_endpoint(file_id: str,
+                                 limit: int = Query(default=200, ge=1, le=2000),
+                                 offset: int = Query(default=0, ge=0)):
+        """获取某文件在 Milvus 中的 chunks 预览"""
+        record = mongo_import_util.get_import_record(file_id)
+        if not record:
+            raise HTTPException(status_code=404, detail=f"文件记录不存在 (file_id={file_id})")
+
+        milvus_client = StorageClients.get_milvus_client()
+        collection_name = os.getenv("MILVUS_COLLECTION_NAME", "shopkeeper_brain_knowledge")
+        file_title = record.get("file_title", "")
+        chunks = milvus_util.list_chunks_by_file_title(
+            milvus_client, collection_name, file_title,
+            limit=limit, offset=offset,
+        )
+        return {
+            "file_title": file_title,
+            "chunk_count": len(chunks),
+            "items": chunks,
+        }
+
+    @app.delete("/files/{file_id}")
+    def delete_file_endpoint(file_id: str):
+        """删除已导入文档（Milvus + Mongo + MinIO 三层清理）"""
+        result = delete_service.delete_document(file_id)
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("message", "删除失败"))
+        return result
 
 
 

@@ -131,3 +131,52 @@ def _item_names_filter(item_names: List[str]) -> Tuple[str, Dict[str, Any]]:
     expr = "item_name in {item_names}"
     expr_params = {"item_names": item_names}
     return expr, expr_params
+
+
+def count_by_file_title(milvus_client: MilvusClient,
+                        collection_name: str,
+                        file_title: str) -> int:
+    try:
+        result = milvus_client.query(
+            collection_name=collection_name,
+            filter=f'file_title == "{file_title}"',
+            output_fields=["chunk_id"],
+        )
+        return len(result) if result else 0
+    except Exception as e:
+        logger.error(f"[milvus] count_by_file_title 失败: {e}")
+        return 0
+
+
+def list_chunks_by_file_title(milvus_client: MilvusClient,
+                              collection_name: str,
+                              file_title: str,
+                              limit: int = 500,
+                              offset: int = 0) -> List[Dict[str, Any]]:
+    try:
+        result = milvus_client.query(
+            collection_name=collection_name,
+            filter=f'file_title == "{file_title}"',
+            output_fields=["chunk_id", "content", "title", "parent_title", "file_title", "item_name"],
+            limit=limit,
+            offset=offset,
+        )
+        return result or []
+    except Exception as e:
+        logger.error(f"[milvus] list_chunks_by_file_title 失败: {e}")
+        return []
+
+
+def delete_by_file_title(milvus_client: MilvusClient,
+                         collection_name: str,
+                         file_title: str) -> bool:
+    try:
+        milvus_client.delete(
+            collection_name=collection_name,
+            filter=f'file_title == "{file_title}"',
+        )
+        logger.info(f"[milvus] 已删除 file_title={file_title} 的所有 chunks")
+        return True
+    except Exception as e:
+        logger.error(f"[milvus] delete_by_file_title 失败: {e}")
+        return False
